@@ -71,10 +71,7 @@ void setupIrTemp()
 
 void readIrTemp()
 {
-  irTemp = mlx.readObjectTempC();
-  // Serial.print("Temperature: ");
-  // Serial.print(tempObjF);
-  // Serial.println(" degrees F");
+  irTemp = mlx.readObjectTempC(); 
 }
 
 void sendState()
@@ -83,101 +80,15 @@ void sendState()
   aht.getEvent(&humidity, &temp); // populate temp and humidity objects with fresh data
 
   airTemp = temp.temperature;
-  airHum = humidity.relative_humidity;
-  /*
-  Serial.print("Temperature: ");
-  Serial.print(airTemp);
-  Serial.println(" degrees F");
-  // Temp.setValue(temp.temperature);
-  Serial.print("Humidity: ");
-  Serial.print(airHum);
-  Serial.println("% rH");
-  */
-  // Hum.setValue(humidity.relative_humidity);
+  airHum = humidity.relative_humidity; 
 }
-/*
-// int turnCounter=0;
-int increment = 0;
 
-IRAM_ATTR void ISR()
-{
-  bool CB = digitalRead(ENCODER_CB);
- // bool CA = digitalRead(ENCODER_CA);
-  if (CB)
-  {
-    increment = +1;
-  }
-  else
-  {
-    increment = -1;
-  }
-}
-*/
 void setupEncoder()
-{
-
-  pinMode(ENCODER_SW, INPUT);
+{  pinMode(ENCODER_SW, INPUT);
   pinMode(RELAYS, OUTPUT);
   digitalWrite(RELAYS, false);
-  // pinMode(ENCODER_CB, INPUT_PULLUP);
-  // attachInterrupt(digitalPinToInterrupt(ENCODER_CA), ISR, RISING);
 }
 
-// int16_t inputDelta = 0; // Counts up or down depending which way the encoder is turned
-// bool printFlag = false; // Flag to indicate that the value of inputDelta should be printed
-
-/*
-void readEncoder() {
-    static uint8_t state = 0;
-    bool CLKstate = digitalRead(ENCODER_CA);
-    bool DTstate = digitalRead(ENCODER_CB);
-    switch (state) {
-        case 0:                         // Idle state, encoder not turning
-            if (!CLKstate){             // Turn clockwise and CLK goes low first
-                state = 1;
-            } else if (!DTstate) {      // Turn anticlockwise and DT goes low first
-                state = 4;
-            }
-            break;
-        // Clockwise rotation
-        case 1:
-            if (!DTstate) {             // Continue clockwise and DT will go low after CLK
-                state = 2;
-            }
-            break;
-        case 2:
-            if (CLKstate) {             // Turn further and CLK will go high first
-                state = 3;
-            }
-            break;
-        case 3:
-            if (CLKstate && DTstate) {  // Both CLK and DT now high as the encoder completes one step clockwise
-                state = 0;
-                ++inputDelta;
-                printFlag = true;
-            }
-            break;
-        // Anticlockwise rotation
-        case 4:                         // As for clockwise but with CLK and DT reversed
-            if (!CLKstate) {
-                state = 5;
-            }
-            break;
-        case 5:
-            if (DTstate) {
-                state = 6;
-            }
-            break;
-        case 6:
-            if (CLKstate && DTstate) {
-                state = 0;
-                --inputDelta;
-                printFlag = true;
-            }
-            break;
-    }
-}
-*/
 
 void setup()
 {
@@ -260,29 +171,23 @@ void stateMashine()
     case setTime:
 
       timeInMin += increment * 5;
-      timeInMin = constrain(timeInMin, MINTIME, MAXTIME);
-      //  Serial.print("NewTime: ");
-      // Serial.println(timeInMin);
+      timeInMin = constrain(timeInMin, MINTIME, MAXTIME);     
 
       break;
     case setTemp:
       targetTemperatur += increment;
-      targetTemperatur = constrain(targetTemperatur, MINTEMP, MAXTEMP);
-      // Serial.print("New Target Temp: ");
-      // Serial.println(targetTemperatur);
+      targetTemperatur = constrain(targetTemperatur, MINTEMP, MAXTEMP);     
       break;
     case setState:
 
       if (increment > 0)
       {
         active = true;
-
         //   Serial.println("Der Ofen an ");
       }
       else if (increment < 0)
       {
         active = false;
-
         // Serial.println("Der Ofen aus ");
       }
       break;
@@ -306,21 +211,8 @@ void heatControler()
       {
         heaterState = true;
         }
-     
-
-      // digitalWrite(RELAYS,true);
-    }
-    else
-    {
-      
-      //heaterState = false;
-    }
-  }
-  else
-  {
-   // heaterState = false;
-  }
-
+    } else {  }
+  }  else  {  }
   digitalWrite(RELAYS, heaterState);
 }
 
@@ -369,14 +261,6 @@ double NTCTemp()
 void loop()
 {
   encoderCheckChange();
-
-  // long newPosition = myEnc.read();
-  /* if (newPosition != oldPosition)
-   {
-     oldPosition = newPosition;
-     Serial.println(newPosition);
-   }*/
-
   if (millis() - TS > DT)
   {
     TS = millis();
