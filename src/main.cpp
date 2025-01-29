@@ -37,7 +37,7 @@ unsigned long ota_progress_millis = 0;
 double airTemp = 0;
 double irTemp = 0;
 double airHum = 0;
-
+double sensorTemperatur = 24;
 double targetTemperatur = 24;
 unsigned int timeInMin = 20;
 int active = 0;
@@ -118,14 +118,13 @@ void setupEncoder()
 
   pinMode(ENCODER_SW, INPUT);
   pinMode(RELAYS, OUTPUT);
-  digitalWrite(RELAYS,false);
- // pinMode(ENCODER_CB, INPUT_PULLUP);
-  //attachInterrupt(digitalPinToInterrupt(ENCODER_CA), ISR, RISING);
+  digitalWrite(RELAYS, false);
+  // pinMode(ENCODER_CB, INPUT_PULLUP);
+  // attachInterrupt(digitalPinToInterrupt(ENCODER_CA), ISR, RISING);
 }
 
-
-int16_t inputDelta = 0; // Counts up or down depending which way the encoder is turned
-bool printFlag = false; // Flag to indicate that the value of inputDelta should be printed
+// int16_t inputDelta = 0; // Counts up or down depending which way the encoder is turned
+// bool printFlag = false; // Flag to indicate that the value of inputDelta should be printed
 
 /*
 void readEncoder() {
@@ -251,16 +250,16 @@ unsigned long encoderRoDB = 500;
 int increment = 0;
 void stateMashine()
 {
-    if (millis() - encoderRoTS > encoderRoDB)
+  if (millis() - encoderRoTS > encoderRoDB)
   {
     encoderRoTS = millis();
 
-  increment = -(myEnc.readAndReset() / 4);  
+    increment = -(myEnc.readAndReset() / 4);
     switch (Heater)
     {
     case setTime:
 
-      timeInMin += increment*5;
+      timeInMin += increment * 5;
       timeInMin = constrain(timeInMin, MINTIME, MAXTIME);
       //  Serial.print("NewTime: ");
       // Serial.println(timeInMin);
@@ -278,13 +277,11 @@ void stateMashine()
       {
         active = true;
 
-
         //   Serial.println("Der Ofen an ");
       }
       else if (increment < 0)
       {
         active = false;
-
 
         // Serial.println("Der Ofen aus ");
       }
@@ -293,29 +290,38 @@ void stateMashine()
     default:
       //  Serial.println("error in state mashine");
       break;
-    }}
-  
-
- 
-}
-
-void heatControler(){
-  bool heaterState=false;
-
-  if (active){
-    if (targetTemperatur > irTemp){
-      heaterState=true;
-//digitalWrite(RELAYS,true);
     }
+  }
+}
+bool heaterState = false;
+void heatControler()
+{
+  heaterState = false;
+  if (active)
+  {
+    if (targetTemperatur > irTemp)
+    {
+
+      if (sensorTemperatur < 80)
+      {
+        heaterState = true;
+        }
+     
+
+      // digitalWrite(RELAYS,true);
+    }
+    else
+    {
       
-  }else{
-    
+      //heaterState = false;
+    }
+  }
+  else
+  {
+   // heaterState = false;
   }
 
-  digitalWrite(RELAYS,heaterState);
-
-
-
+  digitalWrite(RELAYS, heaterState);
 }
 
 int seconds = 0;
@@ -324,9 +330,10 @@ void timer()
   if (active)
   {
     seconds--;
-    if (seconds<=0){
+    if (seconds <= 0)
+    {
       timeInMin--;
-      seconds=60;
+      seconds = 60;
     }
 
     timeInMin = constrain(timeInMin, MINTIME, MAXTIME);
@@ -338,22 +345,24 @@ void timer()
   }
 }
 
-int Ro = 10, B =  3950; //Nominal resistance 50K, Beta constant
-int Rseries = 10;// Series resistor 10K
-float To = 298.15; // Nominal Temperature
+int Ro = 10, B = 3950; // Nominal resistance 50K, Beta constant
+int Rseries = 10;      // Series resistor 10K
+float To = 298.15;     // Nominal Temperature
 
-float NTCTemp(){
- /*Read analog outputof NTC module,
-   i.e the voltage across the thermistor */
+double NTCTemp()
+{
+  /*Read analog outputof NTC module,
+    i.e the voltage across the thermistor */
   float Vi = analogRead(A0) * (3.3 / 1023.0);
-  //Convert voltage measured to resistance value
-  //All Resistance are in kilo ohms.
+  // Convert voltage measured to resistance value
+  // All Resistance are in kilo ohms.
   float R = (Vi * Rseries) / (3.3 - Vi);
   /*Use R value in steinhart and hart equation
     Calculate temperature value in kelvin*/
-  float T =  1 / ((1 / To) + ((log(R / Ro)) / B));
-  float Tc = T - 273.15; // Converting kelvin to celsius  
-  //Serial.println((String)"Temperature in celsius    :" + Tc + "°C"); 
+  float T = 1 / ((1 / To) + ((log(R / Ro)) / B));
+  float Tc = T - 273.15; // Converting kelvin to celsius
+  // Serial.println((String)"Temperature in celsius    :" + Tc + "°C");
+  sensorTemperatur = Tc;
   return Tc;
 }
 
@@ -361,12 +370,12 @@ void loop()
 {
   encoderCheckChange();
 
- // long newPosition = myEnc.read();
- /* if (newPosition != oldPosition)
-  {
-    oldPosition = newPosition;
-    Serial.println(newPosition);
-  }*/
+  // long newPosition = myEnc.read();
+  /* if (newPosition != oldPosition)
+   {
+     oldPosition = newPosition;
+     Serial.println(newPosition);
+   }*/
 
   if (millis() - TS > DT)
   {
@@ -381,32 +390,35 @@ void loop()
   if (millis() - fTS > fDT)
   {
     fTS = millis();
-    Serial.print(" Oven is ");
+    Serial.print(">Oven:");
     if (active)
     {
-      Serial.print(" ON ");
+      Serial.print("1");
     }
     else
     {
-      Serial.print(" OFF ");
+      Serial.print("0");
     }
+    Serial.print(",State:");
 
-    Serial.print(" Target temp: ");
+    Serial.print(Heater);
+    Serial.print(",Heater:");
+    Serial.print(heaterState);
+
+    Serial.print(",TargetTemp:");
     Serial.print(targetTemperatur);
-    Serial.print(" Air temp: ");
+    Serial.print(",AirTemp:");
     Serial.print(airTemp);
-    Serial.print(" IR temp: ");
+    Serial.print(",IrTemp:");
     Serial.print(irTemp);
-    Serial.print(" Air Hum: ");
+    Serial.print(",AirHum:");
     Serial.print(airHum);
-    Serial.print(" Min to go: ");
+    Serial.print(",Time:");
     Serial.print(timeInMin);
-    Serial.print(" ANALOG TEMP ticks: ");
-    Serial.print(analogRead(A0));
-  Serial.print(" ANALOG TEMP C: ");
-  Serial.print(NTCTemp());
+    //  Serial.print("Nt:");
+    // Serial.print(analogRead(A0));
+    Serial.print(",SensorTemp:");
+    Serial.print(NTCTemp());
     Serial.println("");
-  
-
   }
 }
