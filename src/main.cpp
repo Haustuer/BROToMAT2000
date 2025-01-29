@@ -1,9 +1,19 @@
 #include <Arduino.h>
 
-
 // Init Enviromnet Sensor
 #include <Adafruit_AHTX0.h>
 Adafruit_AHTX0 aht;
+
+#include <Encoder.h>
+
+#define ENCODER_SW D3
+#define ENCODER_CA D5
+#define ENCODER_CB D6
+#define RELAYS D7
+
+Encoder myEnc(ENCODER_CA, ENCODER_CB);
+long oldPosition = -999;
+
 #include <ElegantOTA.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
@@ -14,18 +24,14 @@ Adafruit_AHTX0 aht;
 
 #include <Adafruit_MLX90614.h>
 
-#define ENCODER_SW D3
-#define ENCODER_CA D5
-#define ENCODER_CB D6
-
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
 
 unsigned long ota_progress_millis = 0;
 
-#define MAXTEMP 80
-#define MINTEMP 40
+#define MAXTEMP 45
+#define MINTEMP 10
 
-#define MAXTIME 1000
+#define MAXTIME 10000
 #define MINTIME 0
 
 double airTemp = 0;
@@ -33,7 +39,7 @@ double irTemp = 0;
 double airHum = 0;
 
 double targetTemperatur = 24;
-unsigned int timeInSeconds = 20;
+unsigned int timeInMin = 20;
 int active = 0;
 
 enum menue
@@ -63,8 +69,6 @@ void setupIrTemp()
   }
 }
 
-
-
 void readIrTemp()
 {
   irTemp = mlx.readObjectTempC();
@@ -91,7 +95,7 @@ void sendState()
   */
   // Hum.setValue(humidity.relative_humidity);
 }
-
+/*
 // int turnCounter=0;
 int increment = 0;
 
@@ -108,20 +112,22 @@ IRAM_ATTR void ISR()
     increment = -1;
   }
 }
-
+*/
 void setupEncoder()
 {
 
   pinMode(ENCODER_SW, INPUT);
-  pinMode(ENCODER_CA, INPUT_PULLUP);
-  pinMode(ENCODER_CB, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(ENCODER_CA), ISR, RISING);
+  pinMode(RELAYS, OUTPUT);
+  digitalWrite(RELAYS,false);
+ // pinMode(ENCODER_CB, INPUT_PULLUP);
+  //attachInterrupt(digitalPinToInterrupt(ENCODER_CA), ISR, RISING);
 }
 
-int16_t inputDelta = 0;             // Counts up or down depending which way the encoder is turned
-bool printFlag = false;             // Flag to indicate that the value of inputDelta should be printed
 
+int16_t inputDelta = 0; // Counts up or down depending which way the encoder is turned
+bool printFlag = false; // Flag to indicate that the value of inputDelta should be printed
 
+/*
 void readEncoder() {
     static uint8_t state = 0;
     bool CLKstate = digitalRead(ENCODER_CA);
@@ -135,10 +141,10 @@ void readEncoder() {
             }
             break;
         // Clockwise rotation
-        case 1:                     
+        case 1:
             if (!DTstate) {             // Continue clockwise and DT will go low after CLK
                 state = 2;
-            } 
+            }
             break;
         case 2:
             if (CLKstate) {             // Turn further and CLK will go high first
@@ -169,10 +175,10 @@ void readEncoder() {
                 --inputDelta;
                 printFlag = true;
             }
-            break; 
+            break;
     }
 }
-
+*/
 
 void setup()
 {
@@ -192,7 +198,7 @@ void setup()
 unsigned long TS = 0;
 unsigned long DT = 1000;
 unsigned long fTS = 0;
-unsigned long fDT = 5000;
+unsigned long fDT = 1000;
 
 bool EncoderLastState = true;
 unsigned long encoderTS = 0;
@@ -240,79 +246,127 @@ void encoderCheckChange()
 }
 
 unsigned long encoderRoTS = 0;
-unsigned long encoderRoDB = 100;
+unsigned long encoderRoDB = 500;
 
-
-
+int increment = 0;
 void stateMashine()
 {
-  if (increment != 0)
-  {
     if (millis() - encoderRoTS > encoderRoDB)
+  {
+    encoderRoTS = millis();
+
+  increment = -(myEnc.readAndReset() / 4);  
+    switch (Heater)
     {
-      encoderRoTS = millis();
-      // Serial.print("Master ");
-      // Serial.println(CA);
-      // Serial.print("Slave ");
-      // Serial.println(CB);
-        noInterrupts();
-      switch (Heater)
+    case setTime:
+
+      timeInMin += increment*5;
+      timeInMin = constrain(timeInMin, MINTIME, MAXTIME);
+      //  Serial.print("NewTime: ");
+      // Serial.println(timeInMin);
+
+      break;
+    case setTemp:
+      targetTemperatur += increment;
+      targetTemperatur = constrain(targetTemperatur, MINTEMP, MAXTEMP);
+      // Serial.print("New Target Temp: ");
+      // Serial.println(targetTemperatur);
+      break;
+    case setState:
+
+      if (increment > 0)
       {
-      case setTime:
+        active = true;
 
-        timeInSeconds += increment;
-        // timeInSeconds = constrain(timeInSeconds, MINTIME, MAXTIME);
-        Serial.print("NewTime: ");
-        Serial.println(timeInSeconds);
 
-        break;
-      case setTemp:
-        targetTemperatur += increment;
-        //  targetTemperatur = constrain(targetTemperatur, MINTEMP, MAXTEMP);
-        Serial.print("New Target Temp: ");
-        Serial.println(targetTemperatur);
-        break;
-      case setState:
-
-        if (increment > 0)
-        {
-          active = true;
-          Serial.println("Der Ofen an ");
-        }
-        else
-        {
-          active = false;
-          Serial.println("Der Ofen aus ");
-        }
-        break;
-
-      default:
-        Serial.println("error in state mashine");
-        break;
+        //   Serial.println("Der Ofen an ");
       }
-    }
-  }
-  increment = 0;
-   interrupts();
-}
-
-
-void timer(){
-  if (active)
-    {  timeInSeconds--;
-      timeInSeconds = constrain(timeInSeconds, MINTIME, MAXTIME);
-    }
-    if (timeInSeconds<=0){
-      
+      else if (increment < 0)
+      {
         active = false;
 
-   
+
+        // Serial.println("Der Ofen aus ");
+      }
+      break;
+
+    default:
+      //  Serial.println("error in state mashine");
+      break;
+    }}
+  
+
+ 
+}
+
+void heatControler(){
+  bool heaterState=false;
+
+  if (active){
+    if (targetTemperatur > irTemp){
+      heaterState=true;
+//digitalWrite(RELAYS,true);
     }
+      
+  }else{
+    
+  }
+
+  digitalWrite(RELAYS,heaterState);
+
+
+
+}
+
+int seconds = 0;
+void timer()
+{
+  if (active)
+  {
+    seconds--;
+    if (seconds<=0){
+      timeInMin--;
+      seconds=60;
+    }
+
+    timeInMin = constrain(timeInMin, MINTIME, MAXTIME);
+  }
+  if (timeInMin <= 0)
+  {
+
+    active = false;
+  }
+}
+
+int Ro = 10, B =  3950; //Nominal resistance 50K, Beta constant
+int Rseries = 10;// Series resistor 10K
+float To = 298.15; // Nominal Temperature
+
+float NTCTemp(){
+ /*Read analog outputof NTC module,
+   i.e the voltage across the thermistor */
+  float Vi = analogRead(A0) * (3.3 / 1023.0);
+  //Convert voltage measured to resistance value
+  //All Resistance are in kilo ohms.
+  float R = (Vi * Rseries) / (3.3 - Vi);
+  /*Use R value in steinhart and hart equation
+    Calculate temperature value in kelvin*/
+  float T =  1 / ((1 / To) + ((log(R / Ro)) / B));
+  float Tc = T - 273.15; // Converting kelvin to celsius  
+  //Serial.println((String)"Temperature in celsius    :" + Tc + "°C"); 
+  return Tc;
 }
 
 void loop()
 {
   encoderCheckChange();
+
+ // long newPosition = myEnc.read();
+ /* if (newPosition != oldPosition)
+  {
+    oldPosition = newPosition;
+    Serial.println(newPosition);
+  }*/
 
   if (millis() - TS > DT)
   {
@@ -322,8 +376,7 @@ void loop()
     timer();
   }
   stateMashine();
-
-
+  heatControler();
 
   if (millis() - fTS > fDT)
   {
@@ -331,8 +384,7 @@ void loop()
     Serial.print(" Oven is ");
     if (active)
     {
-      Serial.print(" ON ");   
-      
+      Serial.print(" ON ");
     }
     else
     {
@@ -347,10 +399,14 @@ void loop()
     Serial.print(irTemp);
     Serial.print(" Air Hum: ");
     Serial.print(airHum);
-    Serial.print(" Seconds to go: ");
-    Serial.print(timeInSeconds);
-
+    Serial.print(" Min to go: ");
+    Serial.print(timeInMin);
+    Serial.print(" ANALOG TEMP ticks: ");
+    Serial.print(analogRead(A0));
+  Serial.print(" ANALOG TEMP C: ");
+  Serial.print(NTCTemp());
     Serial.println("");
-  }
   
+
+  }
 }
