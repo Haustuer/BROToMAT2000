@@ -1,2 +1,2 @@
 # BROToMAT2000
-Smart Soure Dough Profing Box
+Smart Sourdough Profing Box
