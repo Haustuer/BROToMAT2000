@@ -25,7 +25,7 @@ long oldPosition = -999;
 #include <Adafruit_NeoPixel.h>
 
 #include <Adafruit_MLX90614.h>
-
+#define I2C_CLKRATE_100K 100000 // Speed of I2C bus 100KHz
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
 
 unsigned long ota_progress_millis = 0;
@@ -119,6 +119,7 @@ int hum;
 
 void setupMLX()
 {
+  Wire.setClock(I2C_CLKRATE_100K);
   while (!mlx.begin())
   {
     // Serial.println("Error connecting to MLX sensor. Check wiring.");
@@ -201,19 +202,18 @@ void setupDisplay()
   // u8x8.drawString(0,9,"Line 9");
   u8x8.refreshDisplay(); // only required for SSD1606/7
 }
-#define I2C_CLKRATE_100K 100000 // Speed of I2C bus 400KHz
+
 void setup()
 {
   Serial.begin(115200);
   Serial.println("Starting BROT O MAT 2000");
-  Wire.setClock(I2C_CLKRATE_100K);
+
   setupDisplay();
   setupAHT();
   setupMLX();
   setupEncoder();
   setupServer();
   setupOTA();
-  Wire.setClock(I2C_CLKRATE_100K);
 }
 
 unsigned long fTS = 0;
@@ -343,7 +343,7 @@ void timer()
     if (seconds <= 0)
     {
       timeInMin--;
-      seconds = 60;
+      seconds = 59;
     }
 
     timeInMin = constrain(timeInMin, MINTIME, MAXTIME);
@@ -434,10 +434,19 @@ void showDisplay()
     {
       u8x8.setInverseFont(0);
       u8x8.setFont(u8x8_font_courB18_2x3_f);
-      dtostrf(timeInMin, 2, 0, charVal);
+      dtostrf((timeInMin / 60), 2, 0, charVal);
       u8x8.drawString(0, 12, charVal);
+
+      u8x8.setFont(u8x8_font_victoriabold8_u);
+      dtostrf((timeInMin % 60), 2, 0, charVal);
+      u8x8.drawString(4, 12, charVal);
+
+      u8x8.setFont(u8x8_font_victoriabold8_u);
+      dtostrf(seconds, 2, 0, charVal);
+      u8x8.drawString(4, 13, charVal);
+        u8x8.drawString(4, 14, "  ");
     }
-       u8x8.setInverseFont(0);
+    u8x8.setInverseFont(0);
     u8x8.setFont(u8x8_font_victoriabold8_u);
     u8x8.drawString(8, 10, "STATUS:");
     if (Heater == setState)
@@ -526,6 +535,7 @@ void loop()
   encoderCheckChange();
   if (millis() - TS > DT)
   {
+    setupMLX();
     TS = millis();
     sendState();
     readIrTemp();
