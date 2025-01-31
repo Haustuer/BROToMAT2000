@@ -4,6 +4,8 @@
 #include <Adafruit_AHTX0.h>
 Adafruit_AHTX0 aht;
 
+#include "WebPage.h"
+#include  "credentials.h"
 #include <Encoder.h>
 
 #define ENCODER_SW D3
@@ -27,6 +29,57 @@ long oldPosition = -999;
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
 
 unsigned long ota_progress_millis = 0;
+ESP8266WebServer server(80);
+
+// OTA
+void onOTAStart()
+{
+  Serial.println("OTA update started!");
+}
+
+void onOTAProgress(size_t current, size_t final)
+{
+  // Log every 1 second
+  if (millis() - ota_progress_millis > 1000)
+  {
+    ota_progress_millis = millis();
+    Serial.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
+  }
+}
+
+void onOTAEnd(bool success)
+{
+  // Log when OTA has finished
+  if (success)
+  {
+    Serial.println("OTA update finished successfully!");
+  }
+  else
+  {
+    Serial.println("There was an error during OTA update!");
+  }
+  // <Add your own code here>
+}
+
+void setupOTA()
+{
+
+  // ota
+  Serial.println("Ready");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+  server.on("/", []()
+            { server.send(200, "text/html", MAIN_page); });
+
+  ElegantOTA.begin(&server); // Start ElegantOTA
+  // ElegantOTA callbacks
+  ElegantOTA.onStart(onOTAStart);
+  ElegantOTA.onProgress(onOTAProgress);
+  ElegantOTA.onEnd(onOTAEnd);
+
+  server.begin();
+  Serial.println("HTTP server started");
+}
 
 #define MAXTEMP 45
 #define MINTEMP 10
@@ -51,7 +104,7 @@ enum menue
 
 enum menue Heater = setTemp;
 
-ESP8266WebServer server(80);
+
 
 int hum;
 
@@ -89,11 +142,37 @@ void setupEncoder()
   digitalWrite(RELAYS, false);
 }
 
+void setupServer()
+{
+  byte mac[WL_MAC_ADDR_LENGTH];
+  WiFi.macAddress(mac);
+  Serial.print("Setting up WIFI device:  [ ");
+  for (int i = 0; i < WL_MAC_ADDR_LENGTH; i++)
+  {
+    Serial.print(mac[i], HEX);
+    Serial.print(" ");
+  }
+  Serial.println("]");
+
+   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    Serial.print(".");
+    delay(100); // waiting for the connection
+  }
+  Serial.println();
+  Serial.println("Connected to the network");
+  Serial.println(WiFi.localIP());
+}
 
 void setup()
 {
   Serial.begin(115200);
   Serial.println("Starting BROT O MAT 2000");
+  setupServer();
+  setupOTA();
+
+
   Serial.println("Initializing temperature and humidity sensor!");
   if (!aht.begin())
   {
@@ -260,6 +339,11 @@ double NTCTemp()
 
 void loop()
 {
+   // OTA Loop
+  server.handleClient();
+  ElegantOTA.loop();
+
+  
   encoderCheckChange();
   if (millis() - TS > DT)
   {
